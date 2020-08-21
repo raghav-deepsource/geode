@@ -1000,7 +1000,11 @@ public abstract class RegionVersionVector<T extends VersionSource<?>>
       return true;
     } else {
       RegionVersionHolder<T> holder = new RegionVersionHolder<T>(gcVersion.longValue());
-      return !holder.isNewerThanOrCanFillExceptionsFor(otherHolder);
+      if (otherHolder == null) {
+        return false;
+      } else {
+        return otherHolder.dominates(holder) && otherHolder.getVersion() > gcVersion;
+      }
     }
   }
 
