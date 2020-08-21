@@ -795,8 +795,12 @@ public class GIIDeltaDUnitTest extends JUnit4CacheTestCase {
     waitForToVerifyRVV(P, memberR, 6, exceptionlist, 0); // P's rvv=r6(3-6), gc=0
     P.invoke(() -> GIIDeltaDUnitTest.resetSlowGII());
 
-    // restart and gii, R's rvv should be the same as P's
-    // should do full GII because P8 at P is GCed, but R still has key1
+    // Restart and GII. Even R's rvv==P9, higher than P's rvvGC==P8, We should do still do full GII
+    // because
+    // the exception P9(7-9) caused R's RVV cannot dominate P's rvvGC.
+    // At the entries point of view, P8 at P is GCed, but R still has key1, so we have to do
+    // fullGII.
+    // R's rvv will become the same as P's after GII.
     checkIfFullGII(P, REGION_NAME, R_rvv_bytes, true);
     createDistributedRegion(R);
     waitForToVerifyRVV(R, memberP, 9, null, 8); // R's rvv=p9, gc=8
@@ -1769,10 +1773,11 @@ public class GIIDeltaDUnitTest extends JUnit4CacheTestCase {
   /**
    * P and R are peers, each holds a DR. Each does a few operations to make RVV=P7,R6, RVVGC=P0,R0
    * for both members. P8 is clear() operation. After that, R offline. Run P9 as another put.
-   * Restart R. R will do FullGII to get P9 because R's rvv==P's rvvGC on R
+   * Restart R. R will do deltaGII to get P9 because even R's rvv==P's rvvGC on R but their RVVGC
+   * are the same.
    */
   @Test
-  public void GIIAfterClearWillBeFullGII() throws Throwable {
+  public void sameRVVGCTriggerDeltaGII() throws Throwable {
     prepareForEachTest();
     final DiskStoreID memberP = getMemberID(P);
     final DiskStoreID memberR = getMemberID(R);
@@ -1812,7 +1817,7 @@ public class GIIDeltaDUnitTest extends JUnit4CacheTestCase {
     waitForToVerifyRVV(P, memberR, 6, null, 6);
 
     // restart R to deltaGII
-    checkIfFullGII(P, REGION_NAME, R_rvv_bytes, true);
+    checkIfFullGII(P, REGION_NAME, R_rvv_bytes, false);
 
     // shutdown P and restart
     closeCache(P);
@@ -1828,7 +1833,7 @@ public class GIIDeltaDUnitTest extends JUnit4CacheTestCase {
     RegionVersionVector r_rvv = getRVV(R);
     assertSameRVV(p_rvv, r_rvv); // after gii, rvv should be the same
 
-    verifyDeltaSizeFromStats(R, 1, 0);
+    verifyDeltaSizeFromStats(R, 1, 1);
   }
 
   /**
@@ -1885,11 +1890,11 @@ public class GIIDeltaDUnitTest extends JUnit4CacheTestCase {
     async3.getResult(MAX_WAIT);
 
     // clear() increased P's version with 1 to P8
-    // after clear, P and R's RVVGC == RVV
+    // after clear, P and R's RVVGC == RVV, but their RVVGC are same, so it will still be deltaGII
     waitForToVerifyRVV(P, memberP, 8, null, 8); // P's rvv=r8, gc=8
     waitForToVerifyRVV(P, memberR, 6, null, 6); // P's rvv=r6, gc=6
 
-    // retart R again to do fullGII
+    // retart R again to do deltaGII
     closeCache(R);
     createDistributedRegion(R);
 
@@ -1901,7 +1906,7 @@ public class GIIDeltaDUnitTest extends JUnit4CacheTestCase {
     waitForToVerifyRVV(R, memberR, 6, null, 6); // R's rvv=r6, gc=6
     waitToVerifyKey(P, "key1", null);
     waitToVerifyKey(R, "key1", null);
-    verifyDeltaSizeFromStats(R, 0, 0);
+    verifyDeltaSizeFromStats(R, 0, 1);
   }
 
   /**
