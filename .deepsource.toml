@@ -28,7 +28,7 @@ enabled = true
     ":geode-core",
     ":geode-cq",
     ":geode-dunit",
-    ":geode-experimental-driver",
+    # ":geode-experimental-driver",
     ":geode-gfsh",
     ":geode-http-service",
     ":geode-jmh",
