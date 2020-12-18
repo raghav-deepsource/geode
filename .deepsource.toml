@@ -4,7 +4,7 @@ version = 1
 name = "java"
 enabled = true
 
-  [analyzers.meta]
+  [analyzers.metsa]
   java_version = "8"
   gradle_modules = [
     # ":boms",
