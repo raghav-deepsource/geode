@@ -15,10 +15,6 @@
 
 package org.apache.geode.redis.internal.executor.server;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.geode.redis.internal.data.ByteArrayWrapper;
 import org.apache.geode.redis.internal.executor.AbstractExecutor;
 import org.apache.geode.redis.internal.executor.RedisResponse;
 import org.apache.geode.redis.internal.netty.Command;
@@ -30,7 +26,16 @@ public class SlowlogExecutor extends AbstractExecutor {
   @Override
   public RedisResponse executeCommand(Command command,
       ExecutionHandlerContext context) {
-    List<ByteArrayWrapper> values = new ArrayList<ByteArrayWrapper>();
-    return RedisResponse.array(values);
+    String subCommand = command.getStringKey().toLowerCase();
+    switch (subCommand) {
+      case "get":
+        return RedisResponse.emptyArray();
+      case "len":
+        return RedisResponse.integer(0);
+      case "reset":
+        return RedisResponse.ok();
+      default:
+        return null; // Should never happen
+    }
   }
 }

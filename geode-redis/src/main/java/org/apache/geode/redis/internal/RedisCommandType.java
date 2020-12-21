@@ -26,6 +26,7 @@ import org.apache.geode.redis.internal.ParameterRequirements.MaximumParameterReq
 import org.apache.geode.redis.internal.ParameterRequirements.MinimumParameterRequirements;
 import org.apache.geode.redis.internal.ParameterRequirements.OddParameterRequirements;
 import org.apache.geode.redis.internal.ParameterRequirements.ParameterRequirements;
+import org.apache.geode.redis.internal.ParameterRequirements.SlowlogParameterRequirements;
 import org.apache.geode.redis.internal.ParameterRequirements.SpopParameterRequirements;
 import org.apache.geode.redis.internal.ParameterRequirements.UnspecifiedParameterRequirements;
 import org.apache.geode.redis.internal.executor.Executor;
@@ -73,6 +74,7 @@ import org.apache.geode.redis.internal.executor.server.DBSizeExecutor;
 import org.apache.geode.redis.internal.executor.server.FlushAllExecutor;
 import org.apache.geode.redis.internal.executor.server.InfoExecutor;
 import org.apache.geode.redis.internal.executor.server.ShutDownExecutor;
+import org.apache.geode.redis.internal.executor.server.SlowlogExecutor;
 import org.apache.geode.redis.internal.executor.server.TimeExecutor;
 import org.apache.geode.redis.internal.executor.set.SAddExecutor;
 import org.apache.geode.redis.internal.executor.set.SCardExecutor;
@@ -168,11 +170,9 @@ public enum RedisCommandType {
 
   SUBSCRIBE(new SubscribeExecutor(), SUPPORTED, new MinimumParameterRequirements(2)),
   PUBLISH(new PublishExecutor(), SUPPORTED, new ExactParameterRequirements(3)),
-  UNSUBSCRIBE(new UnsubscribeExecutor(), SUPPORTED, new MinimumParameterRequirements(1)),
   PSUBSCRIBE(new PsubscribeExecutor(), SUPPORTED, new MinimumParameterRequirements(2)),
   PUNSUBSCRIBE(new PunsubscribeExecutor(), SUPPORTED, new MinimumParameterRequirements(1)),
-
-  UNKNOWN(new UnknownExecutor(), SUPPORTED),
+  UNSUBSCRIBE(new UnsubscribeExecutor(), SUPPORTED, new MinimumParameterRequirements(1)),
 
   /***************************************
    *** Unsupported Commands ***
@@ -213,8 +213,8 @@ public enum RedisCommandType {
   MSETNX(new MSetNXExecutor(), UNSUPPORTED,
       new MinimumParameterRequirements(3).and(new OddParameterRequirements())),
   PSETEX(new PSetEXExecutor(), UNSUPPORTED, new ExactParameterRequirements(4)),
-  SETEX(new SetEXExecutor(), UNSUPPORTED, new ExactParameterRequirements(4)),
   SETBIT(new SetBitExecutor(), UNSUPPORTED, new ExactParameterRequirements(4)),
+  SETEX(new SetEXExecutor(), UNSUPPORTED, new ExactParameterRequirements(4)),
   SETNX(new SetNXExecutor(), UNSUPPORTED, new ExactParameterRequirements(3)),
   SETRANGE(new SetRangeExecutor(), UNSUPPORTED, new ExactParameterRequirements(4)),
   STRLEN(new StrlenExecutor(), UNSUPPORTED, new ExactParameterRequirements(2)),
@@ -244,17 +244,17 @@ public enum RedisCommandType {
   SCARD(new SCardExecutor(), UNSUPPORTED, new ExactParameterRequirements(2)),
   SDIFF(new SDiffExecutor(), UNSUPPORTED, new MinimumParameterRequirements(2)),
   SDIFFSTORE(new SDiffStoreExecutor(), UNSUPPORTED, new MinimumParameterRequirements(3)),
-  SISMEMBER(new SIsMemberExecutor(), UNSUPPORTED, new ExactParameterRequirements(3)),
   SINTER(new SInterExecutor(), UNSUPPORTED, new MinimumParameterRequirements(2)),
   SINTERSTORE(new SInterStoreExecutor(), UNSUPPORTED, new MinimumParameterRequirements(3)),
+  SISMEMBER(new SIsMemberExecutor(), UNSUPPORTED, new ExactParameterRequirements(3)),
   SMOVE(new SMoveExecutor(), UNSUPPORTED, new ExactParameterRequirements(4)),
   SPOP(new SPopExecutor(), UNSUPPORTED, new MinimumParameterRequirements(2)
       .and(new MaximumParameterRequirements(3, ERROR_SYNTAX)).and(new SpopParameterRequirements())),
   SRANDMEMBER(new SRandMemberExecutor(), UNSUPPORTED, new MinimumParameterRequirements(2)),
-  SUNION(new SUnionExecutor(), UNSUPPORTED, new MinimumParameterRequirements(2)),
-  SUNIONSTORE(new SUnionStoreExecutor(), UNSUPPORTED, new MinimumParameterRequirements(3)),
   SSCAN(new SScanExecutor(), UNSUPPORTED, new MinimumParameterRequirements(3),
       new OddParameterRequirements(ERROR_SYNTAX)),
+  SUNION(new SUnionExecutor(), UNSUPPORTED, new MinimumParameterRequirements(2)),
+  SUNIONSTORE(new SUnionStoreExecutor(), UNSUPPORTED, new MinimumParameterRequirements(3)),
 
   /***************************************
    *************** Server ****************
@@ -265,6 +265,7 @@ public enum RedisCommandType {
   FLUSHDB(new FlushAllExecutor(), UNSUPPORTED, new MaximumParameterRequirements(2, ERROR_SYNTAX)),
   INFO(new InfoExecutor(), UNSUPPORTED, new MaximumParameterRequirements(2, ERROR_SYNTAX)),
   SHUTDOWN(new ShutDownExecutor(), UNSUPPORTED, new MaximumParameterRequirements(2, ERROR_SYNTAX)),
+  SLOWLOG(new SlowlogExecutor(), UNSUPPORTED, new SlowlogParameterRequirements()),
   TIME(new TimeExecutor(), UNSUPPORTED, new ExactParameterRequirements(1)),
 
   /////////// UNIMPLEMENTED /////////////////////
@@ -333,7 +334,6 @@ public enum RedisCommandType {
   SCRIPT(null, UNIMPLEMENTED),
   SLAVEOF(null, UNIMPLEMENTED),
   REPLICAOF(null, UNIMPLEMENTED),
-  SLOWLOG(null, UNIMPLEMENTED),
   SORT(null, UNIMPLEMENTED),
   STRALGO(null, UNIMPLEMENTED),
   SWAPDB(null, UNIMPLEMENTED),
@@ -377,7 +377,12 @@ public enum RedisCommandType {
   ZREVRANK(null, UNIMPLEMENTED),
   ZSCORE(null, UNIMPLEMENTED),
   ZUNIONSCORE(null, UNIMPLEMENTED),
-  ZSCAN(null, UNIMPLEMENTED);
+  ZSCAN(null, UNIMPLEMENTED),
+
+  /***************************************
+   *** Unknown Commands ***
+   ***************************************/
+  UNKNOWN(new UnknownExecutor(), RedisCommandSupportLevel.UNKNOWN);
 
   private final Executor executor;
   private final ParameterRequirements parameterRequirements;
@@ -412,6 +417,10 @@ public enum RedisCommandType {
 
   public boolean isUnimplemented() {
     return supportLevel == UNIMPLEMENTED;
+  }
+
+  public boolean isUnknown() {
+    return supportLevel == RedisCommandSupportLevel.UNKNOWN;
   }
 
   public boolean isAllowedWhileSubscribed() {

@@ -58,7 +58,6 @@ public class SupportedCommandsJUnitTest {
       "SUBSCRIBE",
       "TTL",
       "TYPE",
-      "UNKNOWN",
       "UNSUBSCRIBE",
   };
 
@@ -108,6 +107,7 @@ public class SupportedCommandsJUnitTest {
       "SINTER",
       "SINTERSTORE",
       "SISMEMBER",
+      "SLOWLOG",
       "SMOVE",
       "SPOP",
       "SRANDMEMBER",
@@ -184,7 +184,6 @@ public class SupportedCommandsJUnitTest {
       "SCRIPT",
       "SLAVEOF",
       "REPLICAOF",
-      "SLOWLOG",
       "SORT",
       "STRALGO",
       "SWAPDB",
@@ -229,6 +228,10 @@ public class SupportedCommandsJUnitTest {
       "ZSCORE",
       "ZUNIONSCORE",
       "ZSCAN"
+  };
+
+  private final String[] unknownCommands = new String[] {
+      "UNKNOWN"
   };
 
   @Test
@@ -278,8 +281,9 @@ public class SupportedCommandsJUnitTest {
     List<String> allCommands = new ArrayList<>(asList(supportedCommands));
     allCommands.addAll(asList(unSupportedCommands));
 
-    List<String> implementedCommands =
-        getAllImplementedCommands().stream().map(Enum::name).collect(Collectors.toList());
+    List<String> implementedCommands = getAllImplementedCommands().stream()
+        .filter(c -> !c.isUnknown())
+        .map(Enum::name).collect(Collectors.toList());
 
     assertThat(implementedCommands).containsExactlyInAnyOrderElementsOf(allCommands);
   }
@@ -289,6 +293,7 @@ public class SupportedCommandsJUnitTest {
     List<String> allCommands = new ArrayList<>(asList(supportedCommands));
     allCommands.addAll(asList(unSupportedCommands));
     allCommands.addAll(asList(unImplementedCommands));
+    allCommands.addAll(asList(unknownCommands));
 
     List<String> definedCommands =
         Arrays.stream(RedisCommandType.values()).map(Enum::name).collect(Collectors.toList());
